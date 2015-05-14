@@ -3,7 +3,7 @@
 
 //  Keep the GPS backup battery voltage between  2.0V~4.3V
 
-//  set the robot's desination from the serial port 
+//  set the robot's destination from the serial port 
 //  Have the robot navigate itself using GPS 
 /*
   Change Log 
@@ -46,7 +46,7 @@ Servo armMotor;  //2000 up, 1000 down
 Servo clawMotor; //2000 close, 1000 open
 
 Adafruit_GPS GPS(&Serial1);
-#define GPSECHO false // I don't think it is nessasary, but if it works...
+#define GPSECHO false // I don't think it is necessary, but if it ain't broke...
 
 //  OLED software i2c pins
 const int OLEDSDAPin = 9; 
@@ -136,7 +136,7 @@ void setup()  {
   
   // the following was taken from example code
  //GPS.begin(9600);
-  // uncomment this line to turnon RMC (recommended minimum) and GGA (fix data) including altitude
+  // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
  // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   // uncomment this line to turn on only the "minimum recommended" data
   //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
@@ -188,7 +188,7 @@ void setup()  {
     delay(1000);
 
     initMPU9250();
-    Serial.println(F("MPU9250 initialized for active data mode....")); // Initialize device for active mode read of acclerometer, gyroscope, and temperature
+    Serial.println(F("MPU9250 initialized for active data mode....")); // Initialize device for active mode read of accelerometer, gyroscope, and temperature
 
     // Read the WHO_AM_I register of the magnetometer, this is a good test of communication
     byte d = readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);  // Read WHO_AM_I register for AK8963
@@ -248,7 +248,7 @@ void loop()  {
 
   centerDrive();
   
-  // Using magnometer 
+  // Using magnetometer 
   if(yaw > Setpoint) {
     leftMotor.writeMicroseconds(2000 - Output - leftOffset);
     rightMotor.writeMicroseconds(1000 + rightOffset);
@@ -380,7 +380,7 @@ void readMPU() {
     readAccelData(accelCount);  // Read the x/y/z adc values
     getAres();
 
-    // Now we'll calculate the accleration value into actual g's
+    // Now we'll calculate the acceleration value into actual g's
     ax = (float)accelCount[0] * aRes; // - accelBias[0];  // get actual g value, this depends on scale being set
     ay = (float)accelCount[1] * aRes; // - accelBias[1];
     az = (float)accelCount[2] * aRes; // - accelBias[2];
@@ -429,7 +429,7 @@ void readMPU() {
   //  MahonyQuaternionUpdate(ax, ay, az, gx * PI / 180.0f, gy * PI / 180.0f, gz * PI / 180.0f, my, mx, mz);
   
   if(gz < -.02 || gz > .02) { // should hopefully prevent too much drift
-    deltaGZ += deltat  * gz; //  rynman sum to find rotation;
+    deltaGZ += deltat  * gz; //  Rynman sum to find rotation;
   }
 
   // Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation.
@@ -500,7 +500,7 @@ double readDouble() {
 
 
 void drive(int movement)  {
-  // 0 -> stop; 1 -> forwad; 2 -> backward; 3 -> left; 4 -> right
+  // 0 -> stop; 1 -> forward; 2 -> backward; 3 -> left; 4 -> right
   switch(movement)  {
   case 0:    //stop
     leftMotor.writeMicroseconds(1500);
@@ -560,7 +560,7 @@ void writeScreenGPS(double distance, double bearing) {
   display.setTextColor(WHITE); 
   display.setTextSize(1);
   display.println(F("Robot GPS by Jakob"));
-  int errorMargin = 5;  // TODO may need to play around with this some more. It may need to be a function of the number of satilights and the fix quality. 
+  int errorMargin = 5;  // TODO may need to play around with this some more. It may need to be a function of the number of satellites and the fix quality. 
   if(distance > errorMargin) {
     display.print(F("Dst: "));
     display.print(distance, 0); 
@@ -663,7 +663,7 @@ byte userSetup() {
 
 void writeScreen(char message[19], int robotStatus, char text[47])  {
   //do not make message or  more than 18 characters long
-  static int previousCall = 100; //abratrary
+  static int previousCall = 100; //arbitrary
   if(previousCall == robotStatus) return;
   
   display.clear();
@@ -757,17 +757,17 @@ foo;                   // float array
 
 
 
-// getting float values from processing into the arduino
+// getting float values from processing into the Arduino
 // was no small task.  the way this program does it is
 // as follows:
 //  * a float takes up 4 bytes.  in processing, convert
 //    the array of floats we want to send, into an array
 //    of bytes.
-//  * send the bytes to the arduino
+//  * send the bytes to the Arduino
 //  * use a data structure known as a union to convert
 //    the array of bytes back into an array of floats
 
-//  the bytes coming from the arduino follow the following
+//  the bytes coming from the Arduino follow the following
 //  format:
 //  0: 0=Manual, 1=Auto, else = ? error ?
 //  1: 0=Direct, 1=Reverse, else = ? error ?

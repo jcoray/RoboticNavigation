@@ -33,7 +33,7 @@
  5V power from the an external LM7805 linear voltage regulator (can output up to 1.5 amps,
  but there is not much heat sinking on it, so I would not go above 1 amp), 
  except the wireless transceiver, which runs off of 3.3V 
- from the Ardunio. A yellow LED indicates that the
+ from the Arduino. A yellow LED indicates that the
  regulated 5V power is on, and a red LED indicates that the battery is on. There
  is a master power switch on the power board.
  
@@ -50,11 +50,12 @@
  file directory or web address for CAD file/pictures (TODO have to make those)
  
  Change log:
+ manual (05/14/15) switched to git for version control
  v2.0.4 (01/30/15) rewrote arm limits from the ground up; removed calibrateArm, and arm read, all the other limit funcctions as they are not used or useful, and other general cleanups
  v2.0.3 (01/25/15) added red/blueshift to the front LED, worked on arm limits
  v2.0.2 (01/05/15) put program through spell check, fixed comments, removed function void pan(), it compiles, but does is work (untested!)
  v2.0.1 (01/01/15) worked on OLED setup screen
- v2.0   (12/29/14) Began work after rewiring entire system. Set up hardware for automous control.
+ v2.0   (12/29/14) Began work after rewiring entire system. Set up hardware for autonomous control.
  v1.0.1 (12/01/14) converted the serial print out for the control data into a function (untested!) (EDIT: works!)
  v1.0:  (09/21/14) got the wireless to work for driving and moving the claw.
  v0.1:  (09/17/14) began work on calibrateArm, added pinMode for sensors
@@ -77,15 +78,14 @@ const int rightMotorPin = 27;
 const int clawMotorPin = 29; 
 
 //  OLED software i2c pins
-//  NOTE or TODO they are wired to the hardware i2c pins, in case I can get that to work
-const int OLEDSDAPin = 20; 
-const int OLEDSCLPin = 21; 
+const int OLEDSDAPin = 9; 
+const int OLEDSCLPin = 8; 
 //  OLED init
 Adafruit_ssd1306syp display(OLEDSDAPin, OLEDSCLPin);
 
 //  Digital Pins
-const int upLimitPin = 2; //connected to upper bumper sensor, pulls low when arm is max hight, used with internal pull up
-const int downLimitPin = 3; //connected to lower bumper sensor, pulls low when arm is minimum hight, used with internal pull up
+const int upLimitPin = 22; //connected to upper bumper sensor, pulls low when arm is max hight, used with internal pull up
+const int downLimitPin = 24; //connected to lower bumper sensor, pulls low when arm is minimum hight, used with internal pull up
 const int greenPin = 4; //PWM pin; used with RGB LED on arm
 const int redPin = 5; //PWM pin; used with RGB LED on arm
 const int bluePin = 6; //PWM pin; used with RGB LED on arm
@@ -97,8 +97,8 @@ const int echoPin = 11; //tentative, may change com pin for ultrasonic
 const int trigPin = 12; //tentative, may change, com pin for ultrasonic
 const int ultraServoPin = 13;
 
-//Analog Pins
-const int IRPin = 7; //TODO senses objects' distance from hand, offset by a few inches, may need repositioning, also is broken..
+//  Analog Pins
+const int IRPin = 15; //TODO senses objects' distance from hand, offset by a few inches, may need repositioning, also is broken..
 
 
 //TODO declare, OLEDTopButtonPin, OLEDBottomButtonPin, all of the GPS pins, speakerPin, tiltSensorPin, lineSensorPin,
@@ -174,10 +174,10 @@ void setup()  {
 
 void loop()  {
   static unsigned long timeSinceReceived = 0;
-  byte data[Mirf.payload];  // Buffer array to hold the recived data
+  byte data[Mirf.payload];  // Buffer array to hold the received data
   if(Mirf.dataReady())  {  
     timeSinceReceived = millis();
-    // If a packet has been received from the nunchuck
+    // If a packet has been received from the nun-chuck
 //   Serial.println("Got packet");
     Mirf.getData(data);  // Get load the packet into the buffer.
     
@@ -197,7 +197,7 @@ void loop()  {
     dopplerShift(127);
     writeScreen("ERROR: No signal", 0, "Out of range or joystick off");
     while(!Mirf.dataReady()) {
-      delay(10); //why not delay
+      delay(10); //  why not delay
     }
     writeScreen("", 0,"Joystick Control");
   }
@@ -227,7 +227,7 @@ void autoRecover()  {
       armMotor.writeMicroseconds(1000); // down  
       }
     armMotor.writeMicroseconds(1500);
-    timeStart = millis(); //set start time
+    timeStart = millis(); // set start time
     debounceTilt();
     while(digitalRead(tiltSensorPin)==0)  {
       if(debounceTilt()==1) break;
@@ -235,7 +235,7 @@ void autoRecover()  {
       // if the robot does not flip back over after 4 seconds, give up
       if(millis()-timeStart>4000) break;  
     }
-    //if auto-recovery fails, wait for the user to flip the robot over
+    //  if auto-recovery fails, wait for the user to flip the robot over
     drive(0); //s top
     writeScreen("ERROR: flipped over", 1, "Flip the robot over.");
     while(1)
@@ -247,7 +247,7 @@ void autoRecover()  {
       writeRGB(0,0,0);
       delay(750);
     }
-    //move the arm back up a little bit
+    //  move the arm back up a little bit
     armMotor.writeMicroseconds(2000);
     delay(500);
     armMotor.writeMicroseconds(1500);
@@ -289,7 +289,7 @@ int startTilt()  {
 }
 
 void writeScreen(char message[19], int robotPosition, char text[47])  {
-  //do not make message or  more than 18 characters long
+  // do not make message or  more than 18 characters long
   enum RobotPosition  {
     UPRIGHT,
     FLIPED,
@@ -324,7 +324,7 @@ void writeRGB(byte red, byte green, byte blue)  {
 }
   
 void dopplerShift(int joyY)  { 
-  //When the robot moves forward the light blue shifts, backwards the light redshifts
+  //  When the robot moves forward the light blue shifts, backwards the light redshifts
   int color = map(constrain(joyY, 34, 217),34, 217 , 0, 255);
   if(color > 127) writeRGB(255 - color ,255 - color, color);
   else writeRGB(255-color, color, color);
@@ -350,7 +350,7 @@ void writeWheels(byte xRaw, byte yRaw)  {
   else xScaled = 0;  //joystick on center (x axis)
   
   int rightMicroseconds = yScaled + xScaled;  // converts scaled values into to  drive values
-  int leftMicroseconds = 3000 - yScaled + xScaled; // the left servo is fliped 
+  int leftMicroseconds = 3000 - yScaled + xScaled; // the left servo is flipped 
 
   rightMotor.writeMicroseconds(rightMicroseconds);
   leftMotor.writeMicroseconds(leftMicroseconds);
@@ -361,29 +361,29 @@ void writeWheels(byte xRaw, byte yRaw)  {
 }
 
 void drive(int movement)  {
-  // 0 -> stop; 1 -> forwad; 2 -> backward; 3 -> left; 4 -> right
+  // 0 -> stop; 1 -> forward; 2 -> backward; 3 -> left; 4 -> right
   switch(movement)  {
-  case 0:    //stop
+  case 0:    // stop
     leftMotor.writeMicroseconds(1500);
     rightMotor.writeMicroseconds(1500);
     break;
 
-  case 1:    //forwards
+  case 1:    // forwards
     leftMotor.writeMicroseconds(2000);
     rightMotor.writeMicroseconds(1000);
     break;
 
-  case 2:    //backwards
+  case 2:    // backwards
     leftMotor.writeMicroseconds(1000);
     rightMotor.writeMicroseconds(2000);
     break;
 
-  case 3:    //left
+  case 3:    // left
     leftMotor.writeMicroseconds(1000);
     rightMotor.writeMicroseconds(1000);
     break;
 
-  case 4:    //right
+  case 4:    // right
     leftMotor.writeMicroseconds(2000);
     rightMotor.writeMicroseconds(2000);
     break;
@@ -397,7 +397,7 @@ void writeArm(byte y)  {
   // If the user is, for example, raising the joystick and thereby the arm,
   // and he/she extends the arm up too far, it should hit the bumper, stop, turn
   // on the up LED, and *not bounce.* It should
-  // then hold the arm steady untill the user points the nunchuck down, and the up
+  // then hold the arm steady until the user points the nun-chuck down, and the up
   // LED should turn off. The same should apply to the lower limit.
   enum Directions  {
     DOWN = -1,
@@ -405,8 +405,8 @@ void writeArm(byte y)  {
   };
 
   int nunchuckPointing;
-  if (y < 100) nunchuckPointing = UP; //user points nunckuck up
-  else if (y > 160) nunchuckPointing = DOWN; //user points nunckuck down
+  if (y < 100) nunchuckPointing = UP; //user points nun-chuck up
+  else if (y > 160) nunchuckPointing = DOWN; //user points nun-chuck down
   
   int limitPressed;  //which, if any limit pins are currently being activated
   if(digitalRead(upLimitPin)==0) limitPressed = UP; //if the arm hits the upper limit
@@ -461,14 +461,14 @@ void writeArm(byte y)  {
 }
 
 void writeClaw(byte z,byte c)  {
-  //controls the claw from the remote
+  //  controls the claw from the remote
   if(z == 0) clawMotor.writeMicroseconds(2000); //opens the claw
   else if (c == 0) clawMotor.writeMicroseconds(1000); //closes the claw
   else clawMotor.writeMicroseconds(1500);
 }
 
 int readIR()  {
-  //This sensor broke...
+  //  This sensor broke...
   unsigned int value = analogRead (IRPin);
   if (value < 10) value = 10;
   unsigned int cm = ((67870.0 / (value - 3.0)) - 40.0)/10; //signed or unsigned?
@@ -476,8 +476,8 @@ int readIR()  {
 }
 
 int readUltra(int angle)  {
-  //TODO see if delayMicroseconds() will interfere with operation
-  //TODO figure out how long it takes the servo motor to move
+  //  TODO see if delayMicroseconds() will interfere with operation
+  //  TODO figure out how long it takes the servo motor to move
   static int a = angle;//angle
   ultraServo.write(angle);
 

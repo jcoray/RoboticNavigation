@@ -3,11 +3,12 @@
 
 //  Keep the GPS backup battery voltage between  2.0V~4.3V
 
-//  set the robot's destination from the serial port 
-//  Have the robot navigate itself using GPS 
+//  set the robot's destination from the serial port
+//  Have the robot navigate itself using GPS
 /*
-  Change Log 
-  * 04/12/2015 - Incorporated MPU9250 Basic Example Code by: Kris Winer
+  Change Log
+  * 05/14/2015 - Switched to git for version control
+  * 04/12/2015 - Incorporated MPU9250 Basic Example Code by Kris Winer
 
 
   MPU9250 code by Kris Winer
@@ -18,14 +19,14 @@
   SDA ---------------------- A4
   SCL ---------------------- A5
   GND ---------------------- GND
-  
+
  */
- 
+
 #include "Navigation.h"
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
-#include <Servo.h> 
-#include <Adafruit_ssd1306syp.h> 
+#include <Servo.h>
+#include <Adafruit_ssd1306syp.h>
 #include <math.h> //  for some trig functions
 #include <Bounce2.h> // https://github.com/thomasfredericks/Bounce-Arduino-Wiring
 #include <MPU-9250.h>
@@ -35,10 +36,10 @@
 double destLat;
 double destLon;
 
-const int armMotorPin = 23; 
-const int leftMotorPin = 25;  
+const int armMotorPin = 23;
+const int leftMotorPin = 25;
 const int rightMotorPin = 27;
-const int clawMotorPin = 29; 
+const int clawMotorPin = 29;
 
 Servo leftMotor;  //2000 forwards, 1000 reverse
 Servo rightMotor; //1000 forwards, 2000 reverse
@@ -49,8 +50,8 @@ Adafruit_GPS GPS(&Serial1);
 #define GPSECHO false // I don't think it is necessary, but if it ain't broke...
 
 //  OLED software i2c pins
-const int OLEDSDAPin = 9; 
-const int OLEDSCLPin = 8; 
+const int OLEDSDAPin = 9;
+const int OLEDSCLPin = 8;
 //  OLED init
 Adafruit_ssd1306syp display(OLEDSDAPin, OLEDSCLPin);
 /*
@@ -84,20 +85,21 @@ const double kkp = 2;
 const double kki = 5;
 const double kkd = 1;
 PID robot(&Input, &Output, &Setpoint, kkp, kki, kkd, DIRECT);
-float deltaGZ; // 
+float deltaGZ; //
 unsigned long serialTime; //this will help us know when to talk with processing
 const bool tunePID = true; // use this to set up the PID, more info: http://playground.arduino.cc/Code/PIDLibrary
 
 int delayTime = 15000; //time to drive uniterupted in milliseconds
 double endLat, endLong;
 bool firstRun = true;
+float yawOffset;
 
 void setup()  {
   Wire.begin();
-  
+
   Serial.begin(115200);
   Serial.println(F("Robot GPS"));
-  
+
   leftMotor.attach(leftMotorPin);
   rightMotor.attach(rightMotorPin);
   armMotor.attach(armMotorPin);
@@ -106,59 +108,59 @@ void setup()  {
   //  stabilize motors in stop position (prevents sporadic motor movement)
   leftMotor.writeMicroseconds(1500);
   rightMotor.writeMicroseconds(1500);
-  armMotor.writeMicroseconds(1500);  
+  armMotor.writeMicroseconds(1500);
   clawMotor.writeMicroseconds(1500);
-  /*
+
   //  Set up buttons
-  pinMode(upPin,INPUT_PULLUP);
-  pinMode(downPin,INPUT_PULLUP);
-  pinMode(leftPin,INPUT_PULLUP);
-  pinMode(rightPin,INPUT_PULLUP);
-  pinMode(enterPin,INPUT_PULLUP);
-  
-  upButton.attach(upPin);
-  downButton.attach(downPin);
-  leftButton.attach(leftPin);
-  rightButton.attach(rightPin);
+  //pinMode(upPin,INPUT_PULLUP);
+  //pinMode(downPin,INPUT_PULLUP);
+  //pinMode(leftPin,INPUT_PULLUP);
+  //pinMode(rightPin,INPUT_PULLUP);
+  pinMode(enterPin, INPUT_PULLUP);
+
+  //upButton.attach(upPin);
+  //downButton.attach(downPin);
+  //leftButton.attach(leftPin);
+  //rightButton.attach(rightPin);
   enterButton.attach(enterPin);
-  
-  upButton.interval(1);
-  downButton.interval(1);
-  leftButton.interval(1);
-  rightButton.interval(1);
-  enterButton.interval(1);
-  
+
+  //upButton.interval(1);
+  //downButton.interval(1);
+  //leftButton.interval(1);
+  //rightButton.interval(1);
+  enterButton.interval(5); //  TODO What units are these in?
+
   pinMode(centerPin, INPUT);
-  */
+  * /
   //  Set up display
   display.initialize();
-  writeScreen("Coray, Created 2/3/15", 2,"Automous Navigation");
-  
+  writeScreen("Coray, Created 2/3/15", 2, "Automous Navigation");
+
   // the following was taken from example code
- //GPS.begin(9600);
+  GPS.begin(9600);
   // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
- // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   // uncomment this line to turn on only the "minimum recommended" data
-  //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   // For parsing data, we don't suggest using anything but either RMC only or RMC+GGA since
   // the parser doesn't care about other sentences at this time
-  
+
   // Set the update rate
   // TODO make this twice a second
- // GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
   // For the parsing code to work nicely and have time to sort thru the data, and
   // print it out we don't suggest using anything higher than 1 Hz
 
   // Request updates on antenna status, comment out to keep quiet
- // GPS.sendCommand(PGCMD_ANTENNA);
+  GPS.sendCommand(PGCMD_ANTENNA);
 
- // delay(1000);
+  delay(1000);
   // Ask for firmware version
-//  Serial1.println(PMTK_Q_RELEASE);
-  
+  Serial1.println(PMTK_Q_RELEASE);
+
   //                      MPU-9250
-  
-  
+
+
   // Set up the interrupt pin, its set as active high, push-pull
   pinMode(intPin, INPUT);
   digitalWrite(intPin, LOW); //disable the internal pullup
@@ -214,120 +216,136 @@ void setup()  {
     Serial.println(c, HEX);
     while (1) ; // Loop forever if communication doesn't happen
   }
-  
+
   //Setup PID
-  
+
   Setpoint = 100; //TODO test value
   robot.SetMode(AUTOMATIC);
+
+  //  User Set up
+  byte userStatus = 0;
+  while (true) {
+
+    //  Read and parse the data from the GPS.
+    GPS.read();
+    // if a sentence is received, we can check the checksum, parse it...
+    if (GPS.newNMEAreceived()) {
+      // a tricky thing here is if we print the NMEA sentence, or data
+      // we end up not listening and catching other sentences!
+      // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
+      if (!GPS.parse(GPS.lastNMEA())) {// this also sets the newNMEAreceived() flag to false
+        return; // we can fail to parse a sentence in which case we should just wait for another
+      }
+    }
+    if (GPS.fix)  {
+      if (userStatus < 2) { //  Check if the user has finished setup.
+        //  Read the buttons.
+        //upButton.update();
+        //downButton.update();
+        //leftButton.update();
+        //rightButton.update();
+        enterButton.update();
+
+        userStatus = userSetup();
+        Serial.print(F("user setup: "));
+        Serial.println(userStatus);
+        return;
+      }
+    }
+    else {  // If the GPS is not fixed
+      Serial.println(F("GPS not fixed"));
+      writeScreen("", 3, "Looking for satellites.");
+    }
+  }
 }
 
 
+// loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooop
 
 
 
-
-void loop()  {
+void loop()  { //  WARNING TODO FIXME This code will fail if the GPS loses its fix. You will need to reset the board if this happens.
   static unsigned long displayTimer = millis();
   static unsigned long GPSTimer = millis();
   static unsigned long MPUTimer = millis();
-  
-  if(tunePID) {
-    if(millis() > serialTime) {
+
+  if (tunePID) {
+    if (millis() > serialTime) {
       SerialReceive();
       SerialSend();
-      serialTime+=500;
+      serialTime += 500;
+    }
+    readMPU();
+    Input = yaw;
+    robot.Compute();
+
+    writeSerialGPS();
+    serialDebugMPU();
+
+    centerDrive();
+
+    float rSetpoint = 360.0 - Setpoint;
+    float rYaw = 360.0 - yaw;
+    float offset = rYaw - rSetpoint;
+    if (offset < 0 ) {
+      leftMotor.writeMicroseconds(2000 - Output - leftOffset);
+      rightMotor.writeMicroseconds(1000 + rightOffset);
+    }
+    else {
+      leftMotor.writeMicroseconds(2000 - leftOffset);
+      rightMotor.writeMicroseconds(1000 + Output + rightOffset);
     }
   }
-  Setpoint = 100;
-  readMPU();
-  Input = yaw; 
-  robot.Compute();
-
-  //writeSerialGPS();
- // serialDebugMPU();
-
-  centerDrive();
-  
-  // Using magnetometer 
-  if(yaw > Setpoint) {
-    leftMotor.writeMicroseconds(2000 - Output - leftOffset);
-    rightMotor.writeMicroseconds(1000 + rightOffset);
-  }
   else {
-    leftMotor.writeMicroseconds(2000 - leftOffset);
-    rightMotor.writeMicroseconds(1000 + Output + rightOffset);
-  }
-  /*
-  // Using gyroscope
-  if(yaw > Setpoint) {
-    leftMotor.writeMicroseconds(2000 - Output - leftOffset);
-    rightMotor.writeMicroseconds(1000 + rightOffset);
-  }
-  else {
-    leftMotor.writeMicroseconds(2000 - leftOffset);
-    rightMotor.writeMicroseconds(1000 + Output + rightOffset);
-  }
-  /*
-  static byte userStatus = 0;
-  //  Read and parse the data from the GPS.
-  GPS.read();
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) {
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences!
-    // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
-    if (!GPS.parse(GPS.lastNMEA())) {// this also sets the newNMEAreceived() flag to false
-      return; // we can fail to parse a sentence in which case we should just wait for another
+    if (millis() - GPSTimer > 1200) { // Read the GPS every 1.2 seconds
+      GPSTimer = millis();
+      GPS.read();
+      // if a sentence is received, we can check the checksum, parse it...
+      if (GPS.newNMEAreceived()) {
+        // a tricky thing here is if we print the NMEA sentence, or data
+        // we end up not listening and catching other sentences!
+        // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
+        if (!GPS.parse(GPS.lastNMEA())) {// this also sets the newNMEAreceived() flag to false
+          return; // we can fail to parse a sentence in which case we should just wait for another
+        }
+      }
     }
-  }
-	if(GPS.fix)  {
-		if(userStatus < 2) { //  Check if the user has finished setup. 
-		  //  Read the buttons.
-		  upButton.update();
-		  downButton.update();
-		  leftButton.update();
-		  rightButton.update();
-		  enterButton.update();
-		  
-		  userStatus = userSetup();
-		  Serial.print(F("user setup: "));
-		  Serial.println(userStatus);
-		  return;
-		}
-		double distance = calculateDistance( GPS.latitudeDegrees, destLat, GPS.longitudeDegrees, destLon);
-		if(distance <= 5) { //  within 5 meters of the destination 
-		  writeScreen("", AT_LOCATION, "");
-		  drive(0);
-		  Serial.println(F("Arrived at destination. Looping forever."));
-		  while(true); //  wait forever
-		}
-		
-		// double heading = GPS.angle;        
-		Setpoint = calculateBearing(GPS.latitudeDegrees, destLat,GPS.longitudeDegrees, destLon);
-		readMPU();
-		Input = yaw; 
-		robot.Compute();
-
-	  writeSerialGPS();
-	  serialDebugMPU();
-
-		centerDrive();
-		leftMotor.writeMicroseconds(2000 - Output - leftOffset);
-		rightMotor.writeMicroseconds(1000 + Output + rightOffset);
-		
-		
-		if (millis() - displayTimer > 2000) {
-		  writeScreenGPS(distance, bearing);
-		  displayTimer = millis();
-		}
     
-	}
-		
-	else {  // If the GPS is not fixed
-		Serial.println(F("GPS not fixed"));
-		writeScreen("", 3,"Looking for satellites.");
-	}
-	*/
+    if (GPS.fix)  {
+      double distance = calculateDistance( GPS.latitudeDegrees, destLat, GPS.longitudeDegrees, destLon);
+      if (distance <= 5) { //  within 5 meters of the destination
+        writeScreen("", AT_LOCATION, "");
+        drive(0);
+        Serial.println(F("Arrived at destination. Looping forever."));
+        while (true); //  wait forever
+      }
+      Setpoint = calculateBearing(GPS.latitudeDegrees, destLat, GPS.longitudeDegrees, destLon);
+      readMPU();
+      Input = yaw;
+      robot.Compute();
+      float rSetpoint = 360.0 - Setpoint;
+      float rYaw = 360.0 - yaw;
+      float offset = rYaw - rSetpoint;
+      if (offset < 0 ) {
+        leftMotor.writeMicroseconds(2000 - Output - leftOffset);
+        rightMotor.writeMicroseconds(1000 + rightOffset);
+      }
+      else {
+        leftMotor.writeMicroseconds(2000 - leftOffset);
+        rightMotor.writeMicroseconds(1000 + Output + rightOffset);
+      }
+    }
+    writeSerialGPS();
+    serialDebugMPU();
+    if (millis() - displayTimer > 2000) {
+      writeScreenGPS(distance, bearing);
+      displayTimer = millis();
+    }
+  }
+  if (millis() - displayTimer > 2000) {
+    writeScreenMPU(distance, bearing);
+    displayTimer = millis();
+  }
 }
 
 
@@ -338,7 +356,7 @@ void loop()  {
 
 void centerDrive() {
   int rawValue = analogRead(centerPin);
-  if(rawValue > 512) { //  change right motor
+  if (rawValue > 512) { //  change right motor
     rightOffset = map(rawValue, 512, 1024, 0, 100);
     leftOffset = 0;
   }
@@ -373,9 +391,9 @@ void serialDebugMPU() {
   Serial.print(F("rate = ")); Serial.print((float)sumCount / sum, 2); Serial.println(F(" Hz"));
   Serial.print(F("temp = "));  Serial.print(temperature, 1);  Serial.println(F(" C")); // Print T values to tenths of s degree C
 }
- 
+
 void readMPU() {
-	  //  Read and filter the data from the MPU.
+  //  Read and filter the data from the MPU.
   if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01) {  // On interrupt, check if data ready interrupt
     readAccelData(accelCount);  // Read the x/y/z adc values
     getAres();
@@ -401,10 +419,10 @@ void readMPU() {
     //  Note: Every MPU is different. You will need to take your
     //  own measurements by setting magbias = 0, spinning the sensor
     //  around, recording the min and max values in every direction,
-    //  and taking the mean. 
+    //  and taking the mean.
     magbias[0] = 120.78; //  +- 32.36  x-axis
-    magbias[1] = -64.39; //  +- 37.55  y-axis 
-    magbias[2] = -69.50; //  +- 20.03  z-axis 
+    magbias[1] = -64.39; //  +- 37.55  y-axis
+    magbias[2] = -69.50; //  +- 20.03  z-axis
     // Calculate the magnetometer values in milliGauss
     // Include factory calibration per data sheet and user environmental corrections
     mx = (float)magCount[0] * mRes * magCalibration[0] - magbias[0]; // get actual magnetometer value, this depends on scale being set
@@ -425,10 +443,10 @@ void readMPU() {
   // in the LSM9DS0 sensor. This rotation can be modified to allow any convenient orientation convention.
   // This is ok by aircraft orientation standards!
   // Pass gyro rate as rad/s
-  MadgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f,  my,  mx, mz); // trying this instead, hopefully more stable
+  MadgwickQuaternionUpdate(ax, ay, az, gx * PI / 180.0f, gy * PI / 180.0f, gz * PI / 180.0f,  my,  mx, mz); // trying this instead, hopefully more stable
   //  MahonyQuaternionUpdate(ax, ay, az, gx * PI / 180.0f, gy * PI / 180.0f, gz * PI / 180.0f, my, mx, mz);
-  
-  if(gz < -.02 || gz > .02) { // should hopefully prevent too much drift
+
+  if (gz < -.02 || gz > .02) { // should hopefully prevent too much drift
     deltaGZ += deltat  * gz; //  Rynman sum to find rotation;
   }
 
@@ -447,8 +465,9 @@ void readMPU() {
   pitch *= 180.0f / PI;
   yaw   *= 180.0f / PI;
   yaw   -= 10.0; // Declination at Arlington, VA is about 10 degrees on 04/12/2015. Added not subtracted because it measures counter-clockwise
-  yaw = map(fmod(yaw + 360, 360),0,360,360,0); //  Convert from (-180, 180) to (0, 360) 
-  roll  *= 180.0f / PI; 
+  yaw
+  yaw = map(fmod(yaw + 360, 360), 0, 360, 360, 0); //  Convert from (-180, 180) to (0, 360)
+  roll  *= 180.0f / PI;
 }
 
 double readDouble() {
@@ -459,12 +478,12 @@ double readDouble() {
   byte byteRead = 0;
   int numOfDec = 0;
   boolean integer = true, negative = false;
-  while(1) {
-    if(Serial.available()) {
+  while (1) {
+    if (Serial.available()) {
       byteRead = Serial.read();
 
-      if(byteRead > 47 && byteRead < 58) { //  Listen for numbers between 0-9.
-        if(integer) {
+      if (byteRead > 47 && byteRead < 58) { //  Listen for numbers between 0-9.
+        if (integer) {
           integers = (integers * 10) + (byteRead - 48);
         }
 
@@ -475,24 +494,24 @@ double readDouble() {
         }
       }
 
-      else if(byteRead == 45) {
+      else if (byteRead == 45) {
         negative = true;
       }
 
-      else if(byteRead == 46) { //  Listen for a decimal point.
+      else if (byteRead == 46) { //  Listen for a decimal point.
         integer = false;
       }
 
-      else if(byteRead == 100) { //  Listen for a 'd'.
+      else if (byteRead == 100) { //  Listen for a 'd'.
         value = integers + (decimals / decimalPlace);
-        if(negative) value *= -1;
+        if (negative) value *= -1;
         Serial.println(value, numOfDec);
         return value;
       }
 
-      else if(byteRead == 104) { //  Listen for a 'h'.
+      else if (byteRead == 104) { //  Listen for a 'h'.
         Serial.println(F("Enter number followed by the lowercase letter"
-                       " 'd'. For example, 12.342d or -4d."));
+                         " 'd'. For example, 12.342d or -4d."));
       }
     }
   }
@@ -501,31 +520,31 @@ double readDouble() {
 
 void drive(int movement)  {
   // 0 -> stop; 1 -> forward; 2 -> backward; 3 -> left; 4 -> right
-  switch(movement)  {
-  case 0:    //stop
-    leftMotor.writeMicroseconds(1500);
-    rightMotor.writeMicroseconds(1500);
-    break;
+  switch (movement)  {
+    case 0:    //stop
+      leftMotor.writeMicroseconds(1500);
+      rightMotor.writeMicroseconds(1500);
+      break;
 
-  case 1:    //forwards
-    leftMotor.writeMicroseconds(2000);
-    rightMotor.writeMicroseconds(1000);
-    break;
+    case 1:    //forwards
+      leftMotor.writeMicroseconds(2000);
+      rightMotor.writeMicroseconds(1000);
+      break;
 
-  case 2:    //backwards
-    leftMotor.writeMicroseconds(1000);
-    rightMotor.writeMicroseconds(2000);
-    break;
+    case 2:    //backwards
+      leftMotor.writeMicroseconds(1000);
+      rightMotor.writeMicroseconds(2000);
+      break;
 
-  case 3:    //left
-    leftMotor.writeMicroseconds(1000);
-    rightMotor.writeMicroseconds(1000);
-    break;
+    case 3:    //left
+      leftMotor.writeMicroseconds(1000);
+      rightMotor.writeMicroseconds(1000);
+      break;
 
-  case 4:    //right
-    leftMotor.writeMicroseconds(2000);
-    rightMotor.writeMicroseconds(2000);
-    break;
+    case 4:    //right
+      leftMotor.writeMicroseconds(2000);
+      rightMotor.writeMicroseconds(2000);
+      break;
   }
 }
 
@@ -545,9 +564,9 @@ void writeSerialGPS() {
   Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
   Serial.print(F(", "));
   Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-  Serial.print(F("Location (degrees): ")); 
-  Serial.print(GPS.latitudeDegrees,7);     Serial.print(F(", "));
-  Serial.println(GPS.longitudeDegrees,7);
+  Serial.print(F("Location (degrees): "));
+  Serial.print(GPS.latitudeDegrees, 7);     Serial.print(F(", "));
+  Serial.println(GPS.longitudeDegrees, 7);
   Serial.print(F("Speed (knots): ")); Serial.println(GPS.speed);
   Serial.print(F("Angle: ")); Serial.println(GPS.angle);
   Serial.print(F("Altitude: ")); Serial.println(GPS.altitude);
@@ -556,20 +575,20 @@ void writeSerialGPS() {
 
 void writeScreenGPS(double distance, double bearing) {
   display.clear();
-  display.setCursor(0,0);
-  display.setTextColor(WHITE); 
+  display.setCursor(0, 0);
+  display.setTextColor(WHITE);
   display.setTextSize(1);
   display.println(F("Robot GPS by Jakob"));
-  int errorMargin = 5;  // TODO may need to play around with this some more. It may need to be a function of the number of satellites and the fix quality. 
-  if(distance > errorMargin) {
+  int errorMargin = 5;  // TODO may need to play around with this some more. It may need to be a function of the number of satellites and the fix quality.
+  if (distance > errorMargin) {
     display.print(F("Dst: "));
-    display.print(distance, 0); 
-    display.print(F("m @ ")); 
+    display.print(distance, 0);
+    display.print(F("m @ "));
     display.print(bearing, 0);
     printHeading(bearing);
   }
-  else if(distance <= errorMargin) {
-    writeScreen("", AT_LOCATION,"");
+  else if (distance <= errorMargin) {
+    writeScreen("", AT_LOCATION, "");
     return;
   }
   else {
@@ -582,81 +601,82 @@ void writeScreenGPS(double distance, double bearing) {
   display.print(GPS.month, DEC); display.print('/');
   display.print(GPS.day, DEC); display.print('/');
   display.println(GPS.year, DEC);
-  
+
   display.print(F("Lat: "));
-  display.print(GPS.latitudeDegrees,6); display.println(GPS.lat);
+  display.print(GPS.latitudeDegrees, 6); display.println(GPS.lat);
   display.print(F("Lon: "));
-  display.print(GPS.longitudeDegrees,6); display.println(GPS.lon);
-  display.print(F("Vel: ")); display.print(GPS.speed,1);
-  display.print(F("mi/h ")); display.print(GPS.angle,0); //TODO use miles or meters, not both
+  display.print(GPS.longitudeDegrees, 6); display.println(GPS.lon);
+  display.print(F("Vel: ")); display.print(GPS.speed, 1);
+  display.print(F("mi/h ")); display.print(GPS.angle, 0); //TODO use miles or meters, not both
   printHeading(GPS.angle);
-  display.print(F("Alt: ")); display.println(GPS.altitude,1);
+  display.print(F("Alt: ")); display.println(GPS.altitude, 1);
   display.print(F("Sat: ")); display.print((int)GPS.satellites);
   display.update();
-  
+
 }
 
 void writeScreenMPU() {
   display.clear();
-  display.setCursor(0,0);
-  display.setTextColor(WHITE); 
+  display.setCursor(0, 0);
+  display.setTextColor(WHITE);
   display.setTextSize(1);
   display.println(F("MPU-9250 Output"));
   display.println(F("   x/Y   y/P   z/R"));
-  
+
   display.print(F("A: "));
-  display.print(ax); display.print(F(" ")); 
-  display.print(ay); display.print(F(" ")); 
+  display.print(ax); display.print(F(" "));
+  display.print(ay); display.print(F(" "));
   display.println(az);
   display.print(F("G: "));
-  display.print(gx); display.print(F(" ")); 
-  display.print(gy); display.print(F(" ")); 
+  display.print(gx); display.print(F(" "));
+  display.print(gy); display.print(F(" "));
   display.println(gz);
   display.print(F("M: "));
-  display.print(mx,0); display.print(F(" ")); 
-  display.print(my,0); display.print(F(" ")); 
-  display.println(mz,0);
+  display.print(mx, 0); display.print(F(" "));
+  display.print(my, 0); display.print(F(" "));
+  display.println(mz, 0);
   display.print(F("Q: \n"));
   display.print(F("O: "));
-  display.print(yaw,1); display.print(F(" ")); 
-  display.print(pitch,1); display.print(F(" ")); 
-  display.println(roll,1);
+  display.print(yaw, 1); display.print(F(" "));
+  display.print(pitch, 1); display.print(F(" "));
+  display.println(roll, 1);
   display.update();
 }
 
 byte userSetup() {
   static byte userStatus = 0;
-  
+
   display.clear();
-  display.setCursor(0,0);
-  display.setTextColor(WHITE); 
+  display.setCursor(0, 0);
+  display.setTextColor(WHITE);
   display.setTextSize(1);
   display.println(F("Robot GPS by Jakob"));
   display.println("");
-  
-  if(userStatus == 0) {
+
+  if (userStatus == 0) {
     display.println(F("Press enter to set current location as robot destination."));
-  /*  if(enterButton.fell()) */{
+    /*  if(enterButton.fell()) */{
       destLat = GPS.latitudeDegrees;
       destLon = GPS.longitudeDegrees;
       userStatus = 1;
       return 1;
     }
   }
-  else if(userStatus == 1) {
+  else if (userStatus == 1) {
     display.println(F("Press enter to navigate to destination."));
-/*    if(enterButton.fell()) */{
+    /*    if(enterButton.fell()) */{
       userStatus = 2;
       drive(1); //  drive straight to get bearing from GPS by dead reckoning
-      delay(3000); 
+      delay(3000);
+      yawOffset = GPS.angle();
       return 2;
     }
   }
-  
+
   display.print(F("Lat: "));
-  display.print(GPS.latitudeDegrees,6); display.println(GPS.lat);
+  display.print(GPS.latitudeDegrees, 6); display.println(GPS.lat);
   display.print(F("Lon: "));
-  display.print(GPS.longitudeDegrees,6); display.println(GPS.lon);
+  display.print(GPS.longitudeDegrees, 6); display.println(GPS.lon);
   display.update();
   return userStatus;
 }
@@ -664,40 +684,40 @@ byte userSetup() {
 void writeScreen(char message[19], int robotStatus, char text[47])  {
   //do not make message or  more than 18 characters long
   static int previousCall = 100; //arbitrary
-  if(previousCall == robotStatus) return;
-  
+  if (previousCall == robotStatus) return;
+
   display.clear();
-  display.setCursor(0,0);
-  display.setTextColor(WHITE); 
+  display.setCursor(0, 0);
+  display.setTextColor(WHITE);
   display.setTextSize(1);
-  display.println(F("Robot GPS by Jakob")); 
+  display.println(F("Robot GPS by Jakob"));
   display.println(message);
-  switch(robotStatus)  {
-    case(UPRIGHT):
+  switch (robotStatus)  {
+    case (UPRIGHT):
       display.println(F("        >===o"));
       display.println(F("        ____]"));
       display.println(F("        *   *"));
       break;
-    case(FLIPED):
-      display.println(F("        *)   {}")); 
+    case (FLIPED):
+      display.println(F("        *)   {}"));
       display.println(F("         |   / "));
       display.println(F("        *)==/  "));
       break;
-    case(GPS_FIXED):
+    case (GPS_FIXED):
       display.println(F("  |       >===o"));
       display.println(F(" [}(      ____]"));
       display.println(F("  |       *   *"));
       break;
-    case(GPS_NOT_FIXED):
+    case (GPS_NOT_FIXED):
       display.println(F("  |    /^\\    >===o"));
       display.println(F(" [}(     /    ____]"));
       display.println(F("  |     !     *   *"));
       break;
-    case(AT_LOCATION):
+    case (AT_LOCATION):
       display.setTextSize(3);
-      display.println(F("ARRIVED")); 
+      display.println(F("ARRIVED"));
       display.println("");
-      display.setTextSize(1); 
+      display.setTextSize(1);
       break;
   }
   display.println();
@@ -709,37 +729,37 @@ void writeScreen(char message[19], int robotStatus, char text[47])  {
 void printHeading(float heading) {
   //  Adapted from https://github.com/adafruit/Flora-GPS-Jacket
   //Remember: this is not the direction you are heading, it is the direction to the destination (north = forward).
-  if ((heading > 348.75)||(heading < 11.25))
+  if ((heading > 348.75) || (heading < 11.25))
     display.println(F("  N"));
-  if ((heading >= 11.25)&&(heading < 33.75))
+  if ((heading >= 11.25) && (heading < 33.75))
     display.println(F("NNE"));
-  if ((heading >= 33.75)&&(heading < 56.25))
+  if ((heading >= 33.75) && (heading < 56.25))
     display.println(F(" NE"));
-  if ((heading >= 56.25)&&(heading < 78.75))
+  if ((heading >= 56.25) && (heading < 78.75))
     display.println(F("ENE"));
-  if ((heading >= 78.75)&&(heading < 101.25))
+  if ((heading >= 78.75) && (heading < 101.25))
     display.println(F("  E"));
-  if ((heading >= 101.25)&&(heading < 123.75))
+  if ((heading >= 101.25) && (heading < 123.75))
     display.println(F("ESE"));
-  if ((heading >= 123.75)&&(heading < 146.25))
-    display.println(F(" SE")); 
-  if ((heading >= 146.25)&&(heading < 168.75))
+  if ((heading >= 123.75) && (heading < 146.25))
+    display.println(F(" SE"));
+  if ((heading >= 146.25) && (heading < 168.75))
     display.println(F("SSE"));
-  if ((heading >= 168.75)&&(heading < 191.25))
+  if ((heading >= 168.75) && (heading < 191.25))
     display.println(F("  S"));
-  if ((heading >= 191.25)&&(heading < 213.75))
-    display.println(F("SSW")); 
-  if ((heading >= 213.75)&&(heading < 236.25))
-    display.println(F(" SW"));  
-  if ((heading >= 236.25)&&(heading < 258.75))
+  if ((heading >= 191.25) && (heading < 213.75))
+    display.println(F("SSW"));
+  if ((heading >= 213.75) && (heading < 236.25))
+    display.println(F(" SW"));
+  if ((heading >= 236.25) && (heading < 258.75))
     display.println(F("WSW"));
-  if ((heading >= 258.75)&&(heading < 281.25))
-    display.println(F("  W")); 
-  if ((heading >= 281.25)&&(heading < 303.75))
-    display.println(F("WNW")); 
-  if ((heading >= 303.75)&&(heading < 326.25))
+  if ((heading >= 258.75) && (heading < 281.25))
+    display.println(F("  W"));
+  if ((heading >= 281.25) && (heading < 303.75))
+    display.println(F("WNW"));
+  if ((heading >= 303.75) && (heading < 326.25))
     display.println(F(" NW"));
-  if ((heading >= 326.25)&&(heading < 348.75))
+  if ((heading >= 326.25) && (heading < 348.75))
     display.println(F("NWN"));
 }
 
@@ -773,7 +793,7 @@ foo;                   // float array
 //  1: 0=Direct, 1=Reverse, else = ? error ?
 //  2-5: float setpoint
 //  6-9: float input
-//  10-13: float output  
+//  10-13: float output
 //  14-17: float P_Param
 //  18-21: float I_Param
 //  22-245: float D_Param
@@ -781,40 +801,40 @@ void SerialReceive()
 {
 
   // read the bytes sent from Processing
-  int index=0;
+  int index = 0;
   byte Auto_Man = -1;
   byte Direct_Reverse = -1;
-  while(Serial.available()&&index<26)
+  while (Serial.available() && index < 26)
   {
-    if(index==0) Auto_Man = Serial.read();
-    else if(index==1) Direct_Reverse = Serial.read();
-    else foo.asBytes[index-2] = Serial.read();
+    if (index == 0) Auto_Man = Serial.read();
+    else if (index == 1) Direct_Reverse = Serial.read();
+    else foo.asBytes[index - 2] = Serial.read();
     index++;
-  } 
-  
-  // if the information we got was in the correct format, 
+  }
+
+  // if the information we got was in the correct format,
   // read it into the system
-  if(index==26  && (Auto_Man==0 || Auto_Man==1)&& (Direct_Reverse==0 || Direct_Reverse==1))
+  if (index == 26  && (Auto_Man == 0 || Auto_Man == 1) && (Direct_Reverse == 0 || Direct_Reverse == 1))
   {
-    Setpoint=double(foo.asFloat[0]);
-    //Input=double(foo.asFloat[1]);       // * the user has the ability to send the 
-                                          //   value of "Input"  in most cases (as 
-                                          //   in this one) this is not needed.
-    if(Auto_Man==0)                       // * only change the output if we are in 
-    {                                     //   manual mode.  otherwise we'll get an
-      Output=double(foo.asFloat[2]);      //   output blip, then the controller will 
+    Setpoint = double(foo.asFloat[0]);
+    //Input=double(foo.asFloat[1]);       // * the user has the ability to send the
+    //   value of "Input"  in most cases (as
+    //   in this one) this is not needed.
+    if (Auto_Man == 0)                    // * only change the output if we are in
+    { //   manual mode.  otherwise we'll get an
+      Output = double(foo.asFloat[2]);    //   output blip, then the controller will
     }                                     //   overwrite.
-    
+
     double p, i, d;                       // * read in and set the controller tunings
     p = double(foo.asFloat[3]);           //
     i = double(foo.asFloat[4]);           //
     d = double(foo.asFloat[5]);           //
     robot.SetTunings(p, i, d);            //
-    
-    if(Auto_Man==0) robot.SetMode(MANUAL);// * set the controller mode
+
+    if (Auto_Man == 0) robot.SetMode(MANUAL); // * set the controller mode
     else robot.SetMode(AUTOMATIC);             //
-    
-    if(Direct_Reverse==0) robot.SetControllerDirection(DIRECT);// * set the controller Direction
+
+    if (Direct_Reverse == 0) robot.SetControllerDirection(DIRECT); // * set the controller Direction
     else robot.SetControllerDirection(REVERSE);          //
   }
   Serial.flush();                         // * clear any random data from the serial buffer
@@ -827,22 +847,22 @@ void SerialReceive()
 void SerialSend()
 {
   Serial.print("PID ");
-  Serial.print(Setpoint);   
+  Serial.print(Setpoint);
   Serial.print(" ");
-  Serial.print(Input);   
+  Serial.print(Input);
   Serial.print(" ");
-  Serial.print(Output);   
+  Serial.print(Output);
   Serial.print(" ");
-  Serial.print(robot.GetKp());   
+  Serial.print(robot.GetKp());
   Serial.print(" ");
-  Serial.print(robot.GetKi());   
+  Serial.print(robot.GetKi());
   Serial.print(" ");
-  Serial.print(robot.GetKd());   
+  Serial.print(robot.GetKd());
   Serial.print(" ");
-  if(robot.GetMode()==AUTOMATIC) Serial.print("Automatic");
-  else Serial.print("Manual");  
+  if (robot.GetMode() == AUTOMATIC) Serial.print("Automatic");
+  else Serial.print("Manual");
   Serial.print(" ");
-  if(robot.GetDirection()==DIRECT) Serial.println("Direct");
+  if (robot.GetDirection() == DIRECT) Serial.println("Direct");
   else Serial.println("Reverse");
 }
 

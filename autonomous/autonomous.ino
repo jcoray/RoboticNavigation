@@ -54,19 +54,20 @@ const int OLEDSDAPin = 9;
 const int OLEDSCLPin = 8;
 //  OLED init
 Adafruit_ssd1306syp display(OLEDSDAPin, OLEDSCLPin);
-/*
+
 const int upPin = 30;
 const int downPin = 31; //  NC
 const int leftPin = 32; //  NC
 const int rightPin = 33; //  NC
 const int enterPin = 13; //  NC
-
+/*
 Bounce upButton = Bounce();
 Bounce downButton = Bounce();
 Bounce leftButton = Bounce();
 Bounce rightButton = Bounce();
+*/ 
 Bounce enterButton = Bounce();
-*/
+
 const int centerPin = 14;
 int rightOffset;
 int leftOffset;
@@ -131,7 +132,7 @@ void setup()  {
   enterButton.interval(5); //  TODO What units are these in?
 
   pinMode(centerPin, INPUT);
-  * /
+  
   //  Set up display
   display.initialize();
   writeScreen("Coray, Created 2/3/15", 2, "Automous Navigation");
@@ -337,13 +338,15 @@ void loop()  { //  WARNING TODO FIXME This code will fail if the GPS loses its f
     }
     writeSerialGPS();
     serialDebugMPU();
+    /*
     if (millis() - displayTimer > 2000) {
       writeScreenGPS(distance, bearing);
       displayTimer = millis();
     }
+    */
   }
   if (millis() - displayTimer > 2000) {
-    writeScreenMPU(distance, bearing);
+    writeScreenMPU();
     displayTimer = millis();
   }
 }
@@ -465,7 +468,6 @@ void readMPU() {
   pitch *= 180.0f / PI;
   yaw   *= 180.0f / PI;
   yaw   -= 10.0; // Declination at Arlington, VA is about 10 degrees on 04/12/2015. Added not subtracted because it measures counter-clockwise
-  yaw
   yaw = map(fmod(yaw + 360, 360), 0, 360, 360, 0); //  Convert from (-180, 180) to (0, 360)
   roll  *= 180.0f / PI;
 }
@@ -668,7 +670,7 @@ byte userSetup() {
       userStatus = 2;
       drive(1); //  drive straight to get bearing from GPS by dead reckoning
       delay(3000);
-      yawOffset = GPS.angle();
+      //yawOffset = GPS.angle();
       return 2;
     }
   }

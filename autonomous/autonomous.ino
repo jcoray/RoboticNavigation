@@ -940,5 +940,3 @@ void SerialSend()
     if(robot.GetDirection()==DIRECT) Serial.println("Direct");
     else Serial.println("Reverse");
 }
-
-
